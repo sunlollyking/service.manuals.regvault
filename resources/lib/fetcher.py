@@ -84,7 +84,8 @@ class Fetcher(object):
     DEFAULT_MANUAL_LIMIT = 32 * 1024 * 1024
 
     def __init__(self, client=None, beside_game=False, size_limit=None,
-                 manual_limit=None, writer=None, exists=os.path.exists, log=None):
+                 manual_limit=None, writer=None, exists=os.path.exists,
+                 opener=None, sizer=None, log=None):
         """
         :param writer: called with (path, data) to store a manual, so that
             Kodi's virtual filesystem can be used in place of plain files
@@ -99,6 +100,8 @@ class Fetcher(object):
         )
         self._writer = writer or self._write_file
         self._exists = exists
+        self._opener = opener
+        self._sizer = sizer
         self._log = log or (lambda message: None)
 
     @staticmethod
@@ -125,7 +128,8 @@ class Fetcher(object):
             return Result(path, Result.UNKNOWN_SYSTEM)
 
         try:
-            rom_hash = hashing.hash_file(path, self._size_limit)
+            rom_hash = hashing.hash_file(path, self._size_limit,
+                                         self._opener, self._sizer)
         except hashing.Skipped as reason:
             return Result(path, Result.SKIPPED, str(reason))
 

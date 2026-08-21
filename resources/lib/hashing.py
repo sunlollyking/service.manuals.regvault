@@ -42,6 +42,14 @@ def _hash_stream(stream):
     return digest.hexdigest()
 
 
+def _default_open(path):
+    return open(path, "rb")
+
+
+def _default_size(path):
+    return os.path.getsize(path)
+
+
 def _inner_rom(archive):
     """The entry inside a zip that is the game.
 
@@ -64,25 +72,46 @@ def _inner_rom(archive):
     return best
 
 
-def hash_file(path, size_limit=DEFAULT_SIZE_LIMIT):
+def hash_file(path, size_limit=DEFAULT_SIZE_LIMIT, opener=None, sizer=None):
     """The MD5 of a game, reaching inside a zip when it is one.
+
+    :param opener: called with the path, returning a readable file object.
+        Games often live on a share, which plain open() cannot reach, so the
+        caller supplies something that can.
+    :param sizer: called with the path, returning its size in bytes
 
     :raises Skipped: when the file will not be hashed, with a reason
     """
+    opener = opener or _default_open
+    sizer = sizer or _default_size
+
     try:
-        size = os.path.getsize(path)
+        size = sizer(path)
     except OSError as error:
         raise Skipped("cannot be read: %s" % error)
 
     if size == 0:
         raise Skipped("is empty")
 
-    if not zipfile.is_zipfile(path):
+    try:
+        stream = opener(path)
+    except OSError as error:
+        raise Skipped("cannot be read: %s" % error)
+
+    try:
+        is_archive = zipfile.is_zipfile(stream)
+        stream.seek(0)
+    except (OSError, ValueError, AttributeError):
+        # Something that cannot be seeked is not an archive we can read
+        is_archive = False
+
+    if not is_archive:
         if size_limit and size > size_limit:
+            stream.close()
             raise Skipped("is %d MB, above the size limit" % (size // (1024 * 1024)))
 
         try:
-            with open(path, "rb") as stream:
+            with stream:
                 return _hash_stream(stream)
         except OSError as error:
             raise Skipped("cannot be read: %s" % error)
@@ -90,7 +119,7 @@ def hash_file(path, size_limit=DEFAULT_SIZE_LIMIT):
     # A zipped ROM is catalogued by the hash of the game inside it, not of the
     # archive, so the entry is hashed as it is decompressed
     try:
-        with zipfile.ZipFile(path) as archive:
+        with zipfile.ZipFile(stream) as archive:
             entry = _inner_rom(archive)
             if entry is None:
                 raise Skipped("holds no recognisable game")
@@ -101,10 +130,12 @@ def hash_file(path, size_limit=DEFAULT_SIZE_LIMIT):
                     % (entry.file_size // (1024 * 1024))
                 )
 
-            with archive.open(entry) as stream:
-                return _hash_stream(stream)
+            with archive.open(entry) as inner:
+                return _hash_stream(inner)
     except Skipped:
         raise
     except (zipfile.BadZipFile, OSError, RuntimeError) as error:
         # RuntimeError is what a password protected entry raises
         raise Skipped("cannot be read: %s" % error)
+    finally:
+        stream.close()
