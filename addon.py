@@ -33,6 +33,7 @@ sys.path.insert(0, xbmcvfs.translatePath(
     xbmcaddon.Addon().getAddonInfo("path")))
 
 from resources.lib import fetcher  # noqa: E402
+from resources.lib import hashing  # noqa: E402
 from resources.lib import regvault  # noqa: E402
 from resources.lib import systems  # noqa: E402
 
@@ -284,20 +285,36 @@ def add_action(label, params, is_folder=False):
 
 
 def search(params):
-    """Answer a per-game search with the manual found, as a listing.
+    """Answer a per-game search with whatever manuals were found.
 
-    This is the shape a manuals dialog in Kodi would call a provider with. It
-    is answered now so that the add-on is already usable that way.
+    This is how Kodi's find-a-manual dialog calls a provider. It hands over
+    the game's path and leaves the matching to us, which is what lets this
+    add-on match on the ROM's hash while another might only compare titles.
+
+    Each result's path is something Kodi can copy from, so the dialog does not
+    need to know anything about this service.
     """
-    rom_hash = params.get("hash")
-    system = params.get("system")
+    path = params.get("path", "")
+    rom_hash = params.get("hash", "")
+    system = params.get("system", "")
 
-    if rom_hash and system:
-        candidates = [system]
-    elif rom_hash:
-        candidates = []
-    else:
-        candidates = []
+    if path and not rom_hash:
+        local = xbmcvfs.translatePath(path)
+
+        try:
+            rom_hash = hashing.hash_file(
+                local, setting_int("rom_size_limit", 512) * 1024 * 1024
+            )
+        except hashing.Skipped as reason:
+            log("not searching for %s: %s" % (path, reason))
+            xbmcplugin.endOfDirectory(HANDLE)
+            return
+
+    if not rom_hash:
+        xbmcplugin.endOfDirectory(HANDLE)
+        return
+
+    candidates = [system] if system else systems.candidates(path)
 
     client = regvault.Client()
 
@@ -308,15 +325,27 @@ def search(params):
             log("search failed: %s" % error, xbmc.LOGWARNING)
             break
 
-        if not game or not game.get("has_manual"):
+        if not game:
             continue
 
-        item = xbmcgui.ListItem(label=game.get("title_en") or rom_hash)
+        if not game.get("has_manual"):
+            # The game is known but has no manual, so the other candidate
+            # systems cannot help either
+            break
+
+        title = game.get("title_en") or fetcher.stem(path)
+        year = game.get("year")
+
+        item = xbmcgui.ListItem(label=title)
+        item.setLabel2(str(year) if year else candidate)
         item.setProperty("system", candidate)
         item.setProperty("hash", rom_hash)
 
+        # The endpoint answers with the document itself, so Kodi can copy
+        # straight from it
         url = "%s/game/%s/%s/manual" % (regvault.BASE_URL, candidate, rom_hash)
         xbmcplugin.addDirectoryItem(HANDLE, url, item, False)
+        break
 
     xbmcplugin.endOfDirectory(HANDLE)
 
