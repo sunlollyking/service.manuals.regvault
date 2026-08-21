@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """A small client for the REG-Vault catalogue.
 
-Only the two calls the manual fetcher needs are implemented: look a game up by
-system and ROM hash, and fetch its manual.
+Only one call is needed: look a game up by system and ROM hash. Kodi copies
+the manual itself, from the URL handed back to it, so nothing is downloaded
+here.
 
 The service publishes a free tier of 1,000 metadata requests a day per address
 and asks that it not be scraped in bulk, so requests are paced and a rate
@@ -34,14 +35,6 @@ class RateLimited(Exception):
 
 class Unavailable(Exception):
     """The service could not be reached, or answered with something unusable."""
-
-
-class TooLarge(Exception):
-    """The manual is bigger than the caller is willing to store."""
-
-    def __init__(self, size):
-        Exception.__init__(self, "%d MB" % (size // (1024 * 1024)))
-        self.size = size
 
 
 class Client(object):
@@ -89,49 +82,3 @@ class Client(object):
                 return json.loads(response.read().decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as error:
             raise Unavailable("unreadable answer: %s" % error)
-
-    def fetch_manual(self, system, rom_hash, max_bytes=0):
-        """The bytes of a game's manual, or None if there is none.
-
-        The endpoint answers with the document itself, following whatever
-        redirect it uses internally.
-
-        :param max_bytes: refuse a manual larger than this, or 0 for no limit.
-            Scans are mostly a few megabytes, but the catalogue holds some at
-            over a hundred, which is not what someone expects to have pulled
-            down on their behalf.
-        :raises TooLarge: when the document is above the limit
-        """
-        url = "%s/game/%s/%s/manual" % (BASE_URL, system, rom_hash)
-
-        response = self._open(url)
-        if response is None:
-            return None
-
-        with response:
-            content_type = (response.headers.get("Content-Type") or "").lower()
-
-            if max_bytes:
-                # Checked before reading where the length is declared, so an
-                # oversized manual costs nothing to refuse
-                declared = response.headers.get("Content-Length")
-                if declared and declared.isdigit() and int(declared) > max_bytes:
-                    raise TooLarge(int(declared))
-
-                # Read one byte past the limit, so going over is detectable
-                # even when no length was declared
-                data = response.read(max_bytes + 1)
-                if len(data) > max_bytes:
-                    raise TooLarge(len(data))
-            else:
-                data = response.read()
-
-        if not data:
-            return None
-
-        # The catalogue serves manuals as PDFs. Checking rather than trusting
-        # the header means an error page cannot be written out as a manual.
-        if not data.startswith(b"%PDF"):
-            raise Unavailable("expected a PDF, got %s" % (content_type or "no type"))
-
-        return data

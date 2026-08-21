@@ -11,52 +11,16 @@ msgstr ""
 "Language: en_GB\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgctxt "#32001"
-msgid "Fetch manuals for all game sources"
-msgstr ""
-
-msgctxt "#32002"
-msgid "Fetch manuals for {0}"
-msgstr ""
-
-msgctxt "#32003"
-msgid "No game sources are set up in Kodi"
-msgstr ""
-
-msgctxt "#32010"
-msgid "Looking for games…"
-msgstr ""
-
-msgctxt "#32011"
-msgid "No games found in your sources"
-msgstr ""
-
-msgctxt "#32012"
-msgid "{0} manuals downloaded, {1} games checked"
-msgstr ""
-
 msgctxt "#32100"
 msgid "General"
-msgstr ""
-
-msgctxt "#32101"
-msgid "Where manuals are stored"
 msgstr ""
 
 msgctxt "#32102"
 msgid "Limits"
 msgstr ""
 
-msgctxt "#32110"
-msgid "Store manuals beside the game"
-msgstr ""
-
-msgctxt "#32111"
-msgid "Off, manuals go in a \"manuals\" folder next to the games, which keeps the games folder readable. Kodi looks in both places."
-msgstr ""
-
 msgctxt "#32120"
-msgid "Largest game to check"
+msgid "Largest game to look up"
 msgstr ""
 
 msgctxt "#32121"
@@ -65,12 +29,4 @@ msgstr ""
 
 msgctxt "#32122"
 msgid "{0:d} MB"
-msgstr ""
-
-msgctxt "#32130"
-msgid "Largest manual to download"
-msgstr ""
-
-msgctxt "#32131"
-msgid "A few manuals in the catalogue are very large scans. Anything above this is left alone."
 msgstr ""

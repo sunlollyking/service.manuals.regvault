@@ -308,6 +308,11 @@ def candidates(path, limit=3):
     return ordered[:limit]
 
 
+def stem(path):
+    """A game's filename with its extension removed."""
+    return os.path.splitext(os.path.basename(path))[0]
+
+
 def is_archive(path):
     return os.path.splitext(path)[1].lower() in ARCHIVE_EXTENSIONS
 
