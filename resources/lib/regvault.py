@@ -19,8 +19,11 @@ import urllib.request
 
 BASE_URL = "https://api.regvault.org/api/v1"
 
+#: Box art and screenshots are served off the host root, not under the API
+ASSET_BASE_URL = "https://api.regvault.org"
+
 #: Identifies the caller, so the service can see what its traffic is
-USER_AGENT = "kodi-service.manuals.regvault/0.1.0 (+https://kodi.tv)"
+USER_AGENT = "kodi-service.manuals.regvault/0.3.0 (+https://kodi.tv)"
 
 #: The documented burst allowance is 100 requests a minute. Staying under it
 #: by a wide margin keeps a large library scan from looking like a scrape.
@@ -82,3 +85,25 @@ class Client(object):
                 return json.loads(response.read().decode("utf-8"))
         except (ValueError, UnicodeDecodeError) as error:
             raise Unavailable("unreadable answer: %s" % error)
+
+    def size_of(self, url):
+        """How large the document at a URL is, in bytes, or 0 if it will not say.
+
+        Worth one request because a manual can be anything from a few hundred
+        kilobytes to a hundred megabytes, and that is most of what decides
+        whether the player wants it fetched over their connection.
+
+        There is no cheap way to ask. The service answers HEAD with JSON
+        rather than headers, and ignores a Range request. So the download is
+        started and abandoned as soon as the header has arrived: nothing past
+        what was already in flight is transferred.
+        """
+        response = self._open(url)
+        if response is None:
+            return 0
+
+        try:
+            with response:
+                return int(response.headers.get("Content-Length") or 0)
+        except (TypeError, ValueError):
+            return 0

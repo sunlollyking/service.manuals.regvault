@@ -90,6 +90,19 @@ def vfs_open(path):
     return VfsStream(path)
 
 
+def human_size(size):
+    """A file size written the way it would be read out."""
+    if size <= 0:
+        return ""
+
+    if size < 1024 * 1024:
+        return "%.0f KB" % (size / 1024.0)
+    if size < 1024 * 1024 * 1024:
+        return "%.1f MB" % (size / (1024.0 * 1024.0))
+
+    return "%.1f GB" % (size / (1024.0 * 1024.0 * 1024.0))
+
+
 def vfs_size(path):
     handle = xbmcvfs.File(path)
     try:
@@ -137,11 +150,55 @@ def search(params):
             # candidate systems cannot help either
             break
 
-        item = xbmcgui.ListItem(label=game.get("title_en") or systems.stem(path))
-        item.setLabel2(str(game.get("year") or system))
+        title = game.get("title_en") or systems.stem(path)
 
         # The endpoint answers with the document, so Kodi can copy from it
         url = "%s/game/%s/%s/manual" % (regvault.BASE_URL, system, rom_hash)
+
+        try:
+            size = client.size_of(url)
+        except (regvault.Unavailable, regvault.RateLimited) as error:
+            # Worth showing the manual anyway - not knowing how big it is is a
+            # worse answer than nothing only if it stops the download
+            log("could not size the manual: %s" % error, xbmc.LOGWARNING)
+            size = 0
+
+        item = xbmcgui.ListItem(label=title)
+        item.setLabel2(human_size(size) or systems.display_name(system))
+
+        assets = game.get("assets") or {}
+        art = {}
+
+        # The box is what settles "is this my game" in one glance, well before
+        # any of the text does
+        if assets.get("box_front"):
+            art["thumb"] = regvault.ASSET_BASE_URL + assets["box_front"]
+            art["poster"] = art["thumb"]
+        if assets.get("fanart"):
+            art["fanart"] = regvault.ASSET_BASE_URL + assets["fanart"]
+        if art:
+            item.setArt(art)
+
+        genre = game.get("genre") or []
+        if isinstance(genre, str):
+            genre = [genre]
+
+        properties = {
+            "manual.title": title,
+            "manual.system": systems.display_name(system),
+            "manual.region": systems.region(path),
+            "manual.size": human_size(size),
+            "manual.year": str(game.get("year") or ""),
+            "manual.publisher": game.get("publisher") or "",
+            "manual.developer": game.get("developer") or "",
+            "manual.genre": ", ".join(genre),
+            "manual.plot": game.get("description_en") or "",
+        }
+
+        # An empty property still counts as set, and the skin decides what to
+        # show by asking whether one is there, so the blanks are dropped
+        item.setProperties({k: v for k, v in properties.items() if v})
+
         xbmcplugin.addDirectoryItem(HANDLE, url, item, False)
         break
 

@@ -246,6 +246,101 @@ EXTENSION_HINTS = {
 #: Extensions that hold a ROM inside an archive rather than being one
 ARCHIVE_EXTENSIONS = {".zip", ".7z"}
 
+# What to call each system on screen. The slugs above are how the catalogue
+# spells them; these are how a person does.
+DISPLAY_NAMES = {
+    "3do": "3DO", "3ds": "Nintendo 3DS", "amiga": "Commodore Amiga",
+    "amigacd32": "Amiga CD32", "amigacdtv": "Amiga CDTV",
+    "amstradcpc": "Amstrad CPC", "apple2": "Apple II",
+    "atari2600": "Atari 2600", "atari5200": "Atari 5200",
+    "atari7800": "Atari 7800", "atari800": "Atari 800", "atarist": "Atari ST",
+    "atomiswave": "Atomiswave", "c64": "Commodore 64", "cdi": "Philips CD-i",
+    "channelf": "Fairchild Channel F", "colecovision": "ColecoVision",
+    "creativision": "CreatiVision", "dos": "MS-DOS",
+    "dreamcast": "Sega Dreamcast", "famicomdisk": "Famicom Disk System",
+    "fbneo": "FinalBurn Neo", "gamecom": "Game.com",
+    "gamecube": "Nintendo GameCube", "gamegear": "Sega Game Gear",
+    "gb": "Game Boy", "gba": "Game Boy Advance", "gbc": "Game Boy Color",
+    "gx4000": "Amstrad GX4000", "intellivision": "Intellivision",
+    "jaguar": "Atari Jaguar", "jaguarcd": "Atari Jaguar CD",
+    "leapster": "Leapster", "lynx": "Atari Lynx", "mame": "Arcade",
+    "mastersystem": "Sega Master System", "megadrive": "Sega Mega Drive",
+    "msx": "MSX", "msx2": "MSX2", "n64": "Nintendo 64",
+    "naomi": "Sega NAOMI", "nds": "Nintendo DS", "neogeo": "Neo Geo",
+    "neogeocd": "Neo Geo CD", "nes": "Nintendo Entertainment System",
+    "ngp": "Neo Geo Pocket", "ngpc": "Neo Geo Pocket Color",
+    "odyssey2": "Magnavox Odyssey 2", "palmos": "Palm OS", "pc98": "NEC PC-98",
+    "pcengine": "PC Engine", "pcenginecd": "PC Engine CD", "pcfx": "PC-FX",
+    "pokemini": "Pokemon Mini", "ps2": "PlayStation 2", "ps3": "PlayStation 3",
+    "psp": "PlayStation Portable", "psvita": "PlayStation Vita",
+    "psx": "PlayStation", "satellaview": "Satellaview", "saturn": "Sega Saturn",
+    "sega32x": "Sega 32X", "segacd": "Sega CD", "segapico": "Sega Pico",
+    "sg1000": "Sega SG-1000", "sharpx1": "Sharp X1",
+    "snes": "Super Nintendo", "studio2": "RCA Studio II",
+    "sufami": "Sufami Turbo", "supergrafx": "SuperGrafx",
+    "supervision": "Watara Supervision", "thomson": "Thomson",
+    "vc4000": "VC 4000", "vectrex": "Vectrex", "vic20": "Commodore VIC-20",
+    "virtualboy": "Virtual Boy", "vsmile": "V.Smile", "wii": "Nintendo Wii",
+    "wiiu": "Nintendo Wii U", "wonderswan": "WonderSwan",
+    "wonderswancolor": "WonderSwan Color", "x68000": "Sharp X68000",
+    "xbox": "Xbox", "xbox360": "Xbox 360", "zxspectrum": "ZX Spectrum",
+}
+
+# The region tags collections put in filenames, as No-Intro spells them and as
+# GoodTools abbreviates them, reduced to lower case.
+REGION_TAGS = {
+    "world": "World", "w": "World",
+    "usa": "USA", "us": "USA", "u": "USA",
+    "europe": "Europe", "eur": "Europe", "e": "Europe",
+    "japan": "Japan", "jpn": "Japan", "jp": "Japan", "j": "Japan",
+    "australia": "Australia", "au": "Australia", "a": "Australia",
+    "brazil": "Brazil", "b": "Brazil",
+    "canada": "Canada", "china": "China", "c": "China",
+    "korea": "Korea", "k": "Korea",
+    "asia": "Asia", "france": "France", "f": "France",
+    "germany": "Germany", "g": "Germany",
+    "italy": "Italy", "i": "Italy",
+    "spain": "Spain", "s": "Spain",
+    "netherlands": "Netherlands", "nl": "Netherlands",
+    "sweden": "Sweden", "norway": "Norway", "denmark": "Denmark",
+    "finland": "Finland", "russia": "Russia", "taiwan": "Taiwan",
+    "hong kong": "Hong Kong", "greece": "Greece", "portugal": "Portugal",
+    "unknown": "Unknown",
+}
+
+
+def display_name(system):
+    """What to call a system on screen."""
+    return DISPLAY_NAMES.get(system, system)
+
+
+def region(path):
+    """The region a game's filename is tagged with, or "".
+
+    The catalogue has no region field, and does not need one: a manual is
+    matched to this exact ROM by its hash, so the region in question is the
+    player's own copy. That is in the filename, tagged the way No-Intro and
+    GoodTools do it.
+
+    Every part of a bracketed group has to be a region for the group to count,
+    which is what keeps "(Rev A)" and "(Proto)" out while letting the combined
+    "(USA, Europe)" through.
+    """
+    found = []
+
+    for group in re.findall(r"[\(\[]([^\)\]]*)[\)\]]", os.path.basename(path)):
+        parts = [part.strip().lower() for part in group.split(",")]
+        names = [REGION_TAGS.get(part) for part in parts]
+
+        if not names or not all(names):
+            continue
+
+        for name in names:
+            if name not in found:
+                found.append(name)
+
+    return ", ".join(found)
+
 
 def _normalise(name):
     """Reduce a folder name so that spelling and punctuation stop mattering."""
