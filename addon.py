@@ -150,9 +150,34 @@ def search(params):
             # candidate systems cannot help either
             break
 
-        title = game.get("title_en") or systems.stem(path)
+        # The catalogue can hold several entries for one game, and the entry a
+        # ROM hashes to is not always the one its manual comes from -
+        # manual_rom_hash names that one. Where they differ, describe it
+        # instead, because what is being offered is the manual, not the file on
+        # disk.
+        #
+        # This is not a corner case. The entry Super Mario Bros. hashes to is
+        # merged from three sources and reads 2013 / Playtronic - a Wii U
+        # re-release date against a Brazilian licensee - while the entry its
+        # manual actually belongs to, built from one source, reads the 1985 /
+        # Nintendo everyone would expect.
+        described = game
+        manual_hash = game.get("manual_rom_hash")
 
-        # The endpoint answers with the document, so Kodi can copy from it
+        if manual_hash and manual_hash != rom_hash:
+            try:
+                other = client.lookup(system, manual_hash)
+            except (regvault.Unavailable, regvault.RateLimited) as error:
+                log("could not read the manual's own entry: %s" % error, xbmc.LOGWARNING)
+                other = None
+
+            if other:
+                described = other
+
+        title = described.get("title_en") or game.get("title_en") or systems.stem(path)
+
+        # Keyed on the ROM's own hash: that is the lookup the service documents,
+        # and it follows manual_rom_hash itself to find the document
         url = "%s/game/%s/%s/manual" % (regvault.BASE_URL, system, rom_hash)
 
         try:
@@ -166,7 +191,12 @@ def search(params):
         item = xbmcgui.ListItem(label=title)
         item.setLabel2(human_size(size) or systems.display_name(system))
 
-        assets = game.get("assets") or {}
+        # The described entry leads, and the ROM's own fills in behind it -
+        # the two rarely carry the same set, and a missing picture is worth
+        # more than a matching one
+        assets = dict(game.get("assets") or {})
+        assets.update({k: v for k, v in (described.get("assets") or {}).items() if v})
+
         art = {}
 
         # The box is what settles "is this my game" in one glance, well before
@@ -179,7 +209,7 @@ def search(params):
         if art:
             item.setArt(art)
 
-        genre = game.get("genre") or []
+        genre = described.get("genre") or []
         if isinstance(genre, str):
             genre = [genre]
 
@@ -188,11 +218,11 @@ def search(params):
             "manual.system": systems.display_name(system),
             "manual.region": systems.region(path),
             "manual.size": human_size(size),
-            "manual.year": str(game.get("year") or ""),
-            "manual.publisher": game.get("publisher") or "",
-            "manual.developer": game.get("developer") or "",
+            "manual.year": str(described.get("year") or ""),
+            "manual.publisher": described.get("publisher") or "",
+            "manual.developer": described.get("developer") or "",
             "manual.genre": ", ".join(genre),
-            "manual.plot": game.get("description_en") or "",
+            "manual.plot": described.get("description_en") or game.get("description_en") or "",
         }
 
         # An empty property still counts as set, and the skin decides what to
