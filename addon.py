@@ -209,9 +209,15 @@ def search(params):
         if art:
             item.setArt(art)
 
+        # The catalogue answers with a list for some games and one
+        # comma-separated string for others, and the string form has no spaces
+        # after its commas - so it is split apart and rejoined rather than
+        # passed through as "Action,Platformer,2D"
         genre = described.get("genre") or []
         if isinstance(genre, str):
-            genre = [genre]
+            genre = genre.split(",")
+
+        genre = [part.strip() for part in genre if part and part.strip()]
 
         properties = {
             "manual.title": title,
