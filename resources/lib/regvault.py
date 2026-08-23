@@ -23,7 +23,7 @@ BASE_URL = "https://api.regvault.org/api/v1"
 ASSET_BASE_URL = "https://api.regvault.org"
 
 #: Identifies the caller, so the service can see what its traffic is
-USER_AGENT = "kodi-service.manuals.regvault/0.3.0 (+https://kodi.tv)"
+USER_AGENT = "kodi-service.manuals.regvault/0.4.0 (+https://kodi.tv)"
 
 #: The documented burst allowance is 100 requests a minute. Staying under it
 #: by a wide margin keeps a large library scan from looking like a scrape.
