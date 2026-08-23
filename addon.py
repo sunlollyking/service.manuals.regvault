@@ -224,7 +224,13 @@ def search(params):
             "manual.system": systems.display_name(system),
             "manual.region": systems.region(path),
             "manual.size": human_size(size),
-            "manual.year": str(described.get("year") or ""),
+            # Only if it could be when this machine's games came out - see
+            # systems.plausible_year for why that check earns its keep
+            "manual.year": (
+                str(described.get("year"))
+                if systems.plausible_year(system, described.get("year"))
+                else ""
+            ),
             "manual.publisher": described.get("publisher") or "",
             "manual.developer": described.get("developer") or "",
             "manual.genre": ", ".join(genre),

@@ -309,9 +309,92 @@ REGION_TAGS = {
 }
 
 
+# Roughly when each machine was commercially alive: first retail games to last.
+# Used only to throw out a year that cannot be right, so the ends are generous
+# rather than exact.
+SYSTEM_YEARS = {
+    "3do": (1993, 1996), "3ds": (2011, 2020), "amiga": (1985, 1996),
+    "amigacd32": (1993, 1995), "amigacdtv": (1991, 1994),
+    "amstradcpc": (1984, 1993), "apple2": (1977, 1993),
+    "atari2600": (1977, 1992), "atari5200": (1982, 1984),
+    "atari7800": (1986, 1992), "atari800": (1979, 1992),
+    "atarist": (1985, 1993), "atomiswave": (2003, 2009),
+    "c64": (1982, 1994), "cdi": (1991, 1998), "channelf": (1976, 1983),
+    "colecovision": (1982, 1985), "creativision": (1981, 1986),
+    "dos": (1981, 2000), "dreamcast": (1998, 2002),
+    "famicomdisk": (1986, 1992), "fbneo": (1975, 2005),
+    "gamecom": (1997, 2000), "gamecube": (2001, 2007),
+    "gamegear": (1990, 1997), "gb": (1989, 2001), "gba": (2001, 2008),
+    "gbc": (1998, 2003), "gx4000": (1990, 1991),
+    "intellivision": (1979, 1991), "jaguar": (1993, 1996),
+    "jaguarcd": (1995, 1996), "leapster": (2003, 2010),
+    "lynx": (1989, 1995), "mame": (1975, 2010),
+    "mastersystem": (1985, 1996), "megadrive": (1988, 1998),
+    "msx": (1983, 1992), "msx2": (1985, 1994), "n64": (1996, 2002),
+    "naomi": (1998, 2007), "nds": (2004, 2014), "neogeo": (1990, 2004),
+    "neogeocd": (1994, 1999), "nes": (1983, 1995), "ngp": (1998, 2000),
+    "ngpc": (1999, 2001), "odyssey2": (1978, 1984),
+    "palmos": (1996, 2009), "pc98": (1982, 2000),
+    "pcengine": (1987, 1995), "pcenginecd": (1988, 1996),
+    "pcfx": (1994, 1998), "pokemini": (2001, 2002),
+    "ps2": (2000, 2013), "ps3": (2006, 2017), "psp": (2004, 2014),
+    "psvita": (2011, 2019), "psx": (1994, 2004),
+    "satellaview": (1995, 2000), "saturn": (1994, 2000),
+    "sega32x": (1994, 1996), "segacd": (1991, 1996),
+    "segapico": (1993, 2005), "sg1000": (1983, 1987),
+    "sharpx1": (1982, 1990), "snes": (1990, 1999),
+    "studio2": (1977, 1979), "sufami": (1996, 1998),
+    "supergrafx": (1989, 1991), "supervision": (1992, 1996),
+    "thomson": (1982, 1989), "vc4000": (1978, 1983),
+    "vectrex": (1982, 1984), "vic20": (1980, 1985),
+    "virtualboy": (1995, 1996), "vsmile": (2004, 2012),
+    "wii": (2006, 2013), "wiiu": (2012, 2017),
+    "wonderswan": (1999, 2002), "wonderswancolor": (2000, 2003),
+    "x68000": (1987, 1993), "xbox": (2001, 2008),
+    "xbox360": (2005, 2016), "zxspectrum": (1982, 1992),
+}
+
+#: Years past a machine's last release still treated as believable, for budget
+#: reissues and stragglers
+YEAR_GRACE = 1
+
+
 def display_name(system):
     """What to call a system on screen."""
     return DISPLAY_NAMES.get(system, system)
+
+
+def plausible_year(system, year):
+    """Whether a year could be when a game for this machine first came out.
+
+    The catalogue merges several sources per game, and when that merge goes
+    wrong it reaches for a later entry - a re-release, or another game in the
+    same series. Measured against 17 N64 titles, 7 of the years were wrong and
+    every one of them was *too late*: Mario Tennis came back as 2015 (Ultra
+    Smash), Paper Mario as 2004 (The Thousand-Year Door), Super Mario Bros. as
+    2013 (the Wii U re-release).
+
+    A manual belongs to the release it was printed for, so a year after the
+    machine stopped getting games cannot be that release. Those are dropped
+    rather than shown, since a confidently wrong date is worse than none.
+
+    Years inside the range are still not guaranteed right - this only catches
+    the ones that are impossible.
+    """
+    if not year:
+        return False
+
+    try:
+        year = int(year)
+    except (TypeError, ValueError):
+        return False
+
+    span = SYSTEM_YEARS.get(system)
+    if not span:
+        return True
+
+    first, last = span
+    return first <= year <= last + YEAR_GRACE
 
 
 def region(path):
