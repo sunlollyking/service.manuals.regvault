@@ -25,21 +25,53 @@ CHUNK_SIZE = 1024 * 1024
 #: rarely matches anything, so files above this are skipped by default
 DEFAULT_SIZE_LIMIT = 512 * 1024 * 1024
 
+#: Copier and emulator headers a dump may carry that the catalogue's hash does
+#: not include. The bytes are prepended by the tool that made the dump, not by
+#: the cartridge, so a headered and a headerless copy of one game differ.
+INES_MAGIC = b"NES\x1a"
+INES_HEADER_SIZE = 16
+
+#: A Super Nintendo copier header is 512 bytes with nothing to identify it, so
+#: it is recognised by the size it leaves behind: cartridge data is a whole
+#: number of kilobytes, and a headered dump is that plus 512.
+SNES_HEADER_SIZE = 512
+SNES_EXTENSIONS = (".smc", ".sfc", ".fig", ".swc")
+
 
 class Skipped(Exception):
     """Raised when a file will not be hashed, with a reason worth logging."""
 
 
-def _hash_stream(stream):
+def _hash_stream(stream, name="", size=0):
+    """The MD5 of a stream, less any copier header on the front of it."""
     digest = hashlib.md5()
 
-    while True:
-        chunk = stream.read(CHUNK_SIZE)
-        if not chunk:
-            break
-        digest.update(chunk)
+    first = stream.read(CHUNK_SIZE)
+    skip = header_size(name, size, first[:len(INES_MAGIC)])
+
+    while first:
+        digest.update(first[skip:])
+        skip = 0
+        first = stream.read(CHUNK_SIZE)
 
     return digest.hexdigest()
+
+
+def header_size(name, size, first_bytes):
+    """How many leading bytes are a copier header rather than the game.
+
+    :param name: the filename, whose extension says which machine this is
+    :param size: the size of the data being hashed
+    :param first_bytes: enough of the start to recognise a magic number
+    """
+    if first_bytes.startswith(INES_MAGIC):
+        return INES_HEADER_SIZE
+
+    lowered = name.lower()
+    if lowered.endswith(SNES_EXTENSIONS) and size % 1024 == SNES_HEADER_SIZE:
+        return SNES_HEADER_SIZE
+
+    return 0
 
 
 def _default_open(path):
@@ -112,7 +144,7 @@ def hash_file(path, size_limit=DEFAULT_SIZE_LIMIT, opener=None, sizer=None):
 
         try:
             with stream:
-                return _hash_stream(stream)
+                return _hash_stream(stream, path, size)
         except OSError as error:
             raise Skipped("cannot be read: %s" % error)
 
@@ -131,7 +163,7 @@ def hash_file(path, size_limit=DEFAULT_SIZE_LIMIT, opener=None, sizer=None):
                 )
 
             with archive.open(entry) as inner:
-                return _hash_stream(inner)
+                return _hash_stream(inner, entry.filename, entry.file_size)
     except Skipped:
         raise
     except (zipfile.BadZipFile, OSError, RuntimeError) as error:
