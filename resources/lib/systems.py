@@ -102,8 +102,10 @@ FOLDER_HINTS = {
     "atari 5200": "atari5200",
     "atari 7800": "atari7800",
     "atari 800": "atari800",
+    "atari 400 800": "atari800",
     "atari st": "atarist",
     "atari jaguar": "jaguar",
+    "jaguar cd": "jaguarcd",
     "atari lynx": "lynx",
     "lynx": "lynx",
     "nec pc engine": "pcengine",
@@ -111,6 +113,7 @@ FOLDER_HINTS = {
     "turbografx 16": "pcengine",
     "turbografx": "pcengine",
     "pc engine cd": "pcenginecd",
+    "turbografx cd": "pcenginecd",
     "supergrafx": "supergrafx",
     "pc fx": "pcfx",
     "snk neo geo": "neogeo",
@@ -145,6 +148,7 @@ FOLDER_HINTS = {
     "intellivision": "intellivision",
     "magnavox odyssey 2": "odyssey2",
     "odyssey 2": "odyssey2",
+    "odyssey2": "odyssey2",
     "gce vectrex": "vectrex",
     "vectrex": "vectrex",
     "fairchild channel f": "channelf",
@@ -434,6 +438,17 @@ def _normalise(name):
     return " ".join(name.split())
 
 
+def _hint(name):
+    """The system a folder's name means, also when the maker's name leads it,
+    as in "Nintendo Game Boy" or "SNK - Neo Geo Pocket"."""
+    words = name.split()
+    for start in range(len(words)):
+        system = FOLDER_HINTS.get(" ".join(words[start:]))
+        if system:
+            return system
+    return None
+
+
 def from_folder(path):
     """The system a game's folder name suggests, or None.
 
@@ -446,9 +461,9 @@ def from_folder(path):
         if not folder:
             break
 
-        name = _normalise(os.path.basename(folder.rstrip("/\\")))
-        if name in FOLDER_HINTS:
-            return FOLDER_HINTS[name]
+        system = _hint(_normalise(os.path.basename(folder.rstrip("/\\"))))
+        if system:
+            return system
 
         parent = os.path.dirname(folder.rstrip("/\\"))
         if parent == folder:
